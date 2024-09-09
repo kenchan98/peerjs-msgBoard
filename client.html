@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PeerJS Message Board</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        #messages {
+            height: 300px;
+            border: 1px solid #ccc;
+            overflow-y: scroll;
+            margin-bottom: 10px;
+            padding: 10px;
+        }
+
+        #messageInput {
+            width: 70%;
+            padding: 5px;
+        }
+
+        #sendButton {
+            width: 25%;
+            padding: 5px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .strong-id {
+            font-size: x-large;
+            font-weight: bold;
+            padding: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>PeerJS Message Board</h1>
+    <div id="clientView">
+        <h2>Client View</h2>
+        <div>
+            <label for="customClientId">Your Custom ID (optional):</label>
+            <input type="text" id="customClientId">
+            <button id="initClientButton">Initialize Client</button>
+        </div>
+        <div id="connectionArea">
+            <label for="customServerId">server ID :</label><span class="strong-id">hcd-led-wall</span>
+            <button id="connectButton">Connect</button>
+        </div>
+        <div id="messageArea" class="hidden">
+            <input type="text" id="messageInput" placeholder="Type your message...">
+            <button id="sendButton">Send</button>
+        </div>
+    </div>
+
+    <script>
+        let peer;
+        let connections = [];
+
+        document.getElementById('initClientButton').addEventListener('click', initializeClient);
+
+        function showServerView() {
+            document.getElementById('roleSelection').classList.add('hidden');
+            document.getElementById('serverView').classList.remove('hidden');
+        }
+
+        function showClientView() {
+            document.getElementById('roleSelection').classList.add('hidden');
+            document.getElementById('clientView').classList.remove('hidden');
+        }
+
+        function initializeServer() {
+            const customId = document.getElementById('customServerId').value;
+            peer = customId ? new Peer(customId) : new Peer();
+
+            peer.on('open', (id) => {
+                document.getElementById('serverId').textContent = id;
+            });
+
+            peer.on('connection', (conn) => {
+                connections.push(conn);
+                conn.on('data', (data) => {
+                    addMessage(`${conn.peer}: ${data}`);
+                });
+            });
+
+            peer.on('error', (err) => {
+                console.error('Server error:', err);
+                alert(`Server error: ${err.type}`);
+            });
+        }
+
+        function initializeClient() {
+            const customId = document.getElementById('customClientId').value;
+            peer = customId ? new Peer(customId) : new Peer();
+
+            peer.on('open', (id) => {
+                document.getElementById('connectionArea').classList.remove('hidden');
+                alert(`Your client ID is: ${id}`);
+            });
+
+            peer.on('error', (err) => {
+                console.error('Client error:', err);
+                alert(`Client error: ${err.type}`);
+            });
+
+            document.getElementById('connectButton').addEventListener('click', connectToServer);
+        }
+
+        function connectToServer() {
+            const serverPeerId = "hcd-led-wall"
+            const conn = peer.connect(serverPeerId);
+
+            conn.on('open', () => {
+                document.getElementById('messageArea').classList.remove('hidden');
+                document.getElementById('sendButton').addEventListener('click', sendMessage);
+                document.getElementById('messageInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') sendMessage();
+                });
+            });
+
+            conn.on('error', (err) => {
+                console.error('Connection error:', err);
+                alert(`Connection error: ${err}`);
+            });
+        }
+
+        function sendMessage() {
+            const message = document.getElementById('messageInput').value;
+            if (message && peer.connections[Object.keys(peer.connections)[0]][0].open) {
+                peer.connections[Object.keys(peer.connections)[0]][0].send(message);
+                document.getElementById('messageInput').value = '';
+            }
+        }
+
+        function addMessage(message) {
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML += '<div>' + message + '</div>';
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+    </script>
+</body>
+
+</html>
